@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: quay.io/minio/minio:RELEASE.2022-10-20T00-55-09Z
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
+          #command: ["/usr/bin/minio","server", "/data", "--address", ":9000", "--console-address", ":9001"]
+        args:
+        - "server"
+        - "/data"
+        - "--address"
+        - ":9000"
+        - "--console-address"
+        - ":9001"
+        imagePullPolicy: Always
+        env:
+        - name: MINIO_ROOT_USER 
+          value: "minio"
+        - name: MINIO_ROOT_PASSWORD 
+          value: "password"
+        volumeMounts:
+        - name: neon-pvc-minio
+          mountPath: "/data"
+      volumes:
+      - name: neon-pvc-minio
+        persistentVolumeClaim:
+          claimName: hgneon-pvc-minio
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-bucket-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: mc
+          image: minio/mc
+          command: ["/minioinit/addbucket.sh"]
+          #command: ["tail", "-f", "/dev/null"]
+          volumeMounts:
+          - name: minio-init
+            mountPath: "/minioinit"
+      restartPolicy: Never
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+      - name: minio-init
+        configMap:
+          name: miniobucket
+          defaultMode: 0755
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-console
+spec:
+  type: NodePort
+  selector:
+    app: minio
+  ports:
+  - name: minio-console-port
+    port: 9001
+    targetPort: 9001
+    nodePort: 32001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-store
+spec:
+  type: ClusterIP
+  selector:
+    app: minio
+  ports:
+  - name: minio-store-port
+    port: 9000
+    targetPort: 9000
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hgneon-pvc-minio
+spec:
+  volumeName: hgneon-pv-minio
+  accessModes:
+    - ReadWriteMany
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hgneon-pv-minio
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "minio"
+
