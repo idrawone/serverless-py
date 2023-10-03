@@ -1,0 +1,297 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hgneon-pvc-pageserver
+spec:
+  volumeName: hgneon-pv-pageserver
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hgneon-pvc-safekeeper1
+spec:
+  volumeName: hgneon-pv-safekeeper1
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hgneon-pvc-safekeeper2
+spec:
+  volumeName: hgneon-pv-safekeeper2
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hgneon-pvc-safekeeper3
+spec:
+  volumeName: hgneon-pv-safekeeper3
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+---
+
+### PVs
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hgneon-pv-pageserver
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "pageserver"
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hgneon-pv-safekeeper1
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "safekeeper1"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hgneon-pv-safekeeper2
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "safekeeper2"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hgneon-pv-safekeeper3
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "safekeeper3"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipc-service
+spec:
+  type: ClusterIP
+  selector:
+    app: hgneon-app
+  ports:
+  - name: pageserver-http
+    port: 9898
+    targetPort: 9898
+  - name: pageserver-pg
+    port: 6400
+    targetPort: 6400
+  - name: safekeeper1-http
+    port: 7676
+    targetPort: 7676
+  - name: safekeeper1-pg
+    port: 5454
+    targetPort: 5454
+  - name: safekeeper2-http
+    port: 7677
+    targetPort: 7677
+  - name: safekeeper2-pg
+    port: 5455
+    targetPort: 5455
+  - name: safekeeper3-http
+    port: 7678
+    targetPort: 7678
+  - name: safekeeper3-pg
+    port: 5456
+    targetPort: 5456
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hgneon-service
+spec:
+  type: NodePort
+  selector:
+    app: hgneon-app
+  ports:
+    - port: 9898
+      targetPort: 9898
+      nodePort: 30080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hgneon-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hgneon-app
+  template:
+    metadata:
+      labels:
+        app: hgneon-app
+    spec:
+      containers:
+      - name: storagebroker
+        image: hgneon/hg-storage-node:r2023-08-08-v1.0.0
+        ports:
+        - containerPort: 50051
+        command: ["/neoninit/hgneonstorage.sh", "broker"]
+        volumeMounts:
+        - name: neon-init
+          mountPath: "/neoninit"
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+      - name: pageserver 
+        image: hgneon/hg-storage-node:r2023-08-08-v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9898
+        - containerPort: 6400
+        command: ["/neoninit/hgneonstorage.sh", "pageserver"]
+        env:
+        - name: BROKER_ENDPOINT
+          value: "http://127.0.0.1:50051"
+        - name: AWS_ACCESS_KEY_ID 
+          value: "minio"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "password"
+        volumeMounts:
+        - name: neon-init
+          mountPath: "/neoninit"
+        - name: neon-pvc-pageserver
+          mountPath: "/data/.neon"
+      - name: safekeeper1 
+        image: hgneon/hg-storage-node:r2023-08-08-v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 7676
+        - containerPort: 5454
+        command: ["/neoninit/hgneonstorage.sh", "safekeeper"]
+        env:
+        - name: SAFEKEEPER_ADVERTISE_URL
+          value: "0.0.0.0:5454"
+        - name: SAFEKEEPER_ID 
+          value: "1"
+        - name: BROKER_ENDPOINT
+          value: "http://127.0.0.1:50051"
+        - name: AWS_ACCESS_KEY_ID 
+          value: "minio"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "password"
+        - name: LISTEN_HTTP
+          value: "0.0.0.0:7676"
+        volumeMounts:
+        - name: neon-init
+          mountPath: "/neoninit"
+        - name: neon-pvc-safekeeper1
+          mountPath: "/data"
+      - name: safekeeper2 
+        image: hgneon/hg-storage-node:r2023-08-08-v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 7677
+        - containerPort: 5455
+        command: ["/neoninit/hgneonstorage.sh", "safekeeper"]
+        env:
+        - name: SAFEKEEPER_ADVERTISE_URL
+          value: "0.0.0.0:5455"
+        - name: SAFEKEEPER_ID 
+          value: "2"
+        - name: BROKER_ENDPOINT
+          value: "http://127.0.0.1:50051"
+        - name: AWS_ACCESS_KEY_ID 
+          value: "minio"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "password"
+        - name: LISTEN_HTTP
+          value: "0.0.0.0:7677"
+        volumeMounts:
+        - name: neon-init
+          mountPath: "/neoninit"
+        - name: neon-pvc-safekeeper2
+          mountPath: "/data"
+      - name: safekeeper3 
+        image: hgneon/hg-storage-node:r2023-08-08-v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 7678
+        - containerPort: 5456
+        command: ["/neoninit/hgneonstorage.sh", "safekeeper"]
+        env:
+        - name: SAFEKEEPER_ADVERTISE_URL
+          value: "0.0.0.0:5456"
+        - name: SAFEKEEPER_ID 
+          value: "3"
+        - name: BROKER_ENDPOINT
+          value: "http://127.0.0.1:50051"
+        - name: AWS_ACCESS_KEY_ID 
+          value: "minio"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "password"
+        - name: LISTEN_HTTP
+          value: "0.0.0.0:7678"
+        volumeMounts:
+        - name: neon-init
+          mountPath: "/neoninit"
+        - name: neon-pvc-safekeeper3
+          mountPath: "/data"
+      volumes:
+      - name: neon-init
+        configMap:
+          name: neonconfig
+          defaultMode: 0755
+      - name: neon-spec
+        configMap:
+          name: computespec
+      - name: neon-pvc-pageserver
+        persistentVolumeClaim:
+          claimName: hgneon-pvc-pageserver
+      - name: neon-pvc-safekeeper1
+        persistentVolumeClaim:
+          claimName: hgneon-pvc-safekeeper1
+      - name: neon-pvc-safekeeper2
+        persistentVolumeClaim:
+          claimName: hgneon-pvc-safekeeper2
+      - name: neon-pvc-safekeeper3
+        persistentVolumeClaim:
+          claimName: hgneon-pvc-safekeeper3

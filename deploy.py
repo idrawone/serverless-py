@@ -1,5 +1,6 @@
-from kubernetes import client, config
 import yaml
+import argparse
+from kubernetes import client, config
 
 # Specify a custom kubeconfig file
 custom_kubeconfig_path = '~/.kube/config'
@@ -79,6 +80,19 @@ def apply_template(file_path):
             else:
                 print(f'Unknown resource type: {kind}')
 
-# Apply the combined YAML template
-apply_template('minio/minio-deploy.yml')
+
+# Create an argument parser
+parser = argparse.ArgumentParser(description='Deploy Kubernetes resources.')
+
+# Add an argument for the file path
+parser.add_argument('file_path', help='Path to the YAML file for deployment.')
+
+# Parse the command-line arguments
+args = parser.parse_args()
+
+# Load the custom kubeconfig
+config.load_kube_config(config_file=custom_kubeconfig_path)
+
+# Apply the template using the provided file path
+apply_template(args.file_path)
 
