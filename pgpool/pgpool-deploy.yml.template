@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgpool-COMPUTEID
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgpool-COMPUTEID
+  template:
+    metadata:
+      labels:
+        app: pgpool-COMPUTEID
+    spec:
+      containers:
+      - name: pgpool-COMPUTEID
+        image: hgneon/pgpool:v4.4.3rc3
+        ports:
+        - containerPort: 9999
+        - containerPort: 9899
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "400m"
+        env:
+        - name: POSTGRES_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: handler-mypostgres-postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: handler-mypostgres-postgres-secret
+              key: password
+        - name: PGPOOL_PASSWORD_ENCRYPTION_METHOD
+          value: "scram-sha-256"
+        - name: PGPOOL_ENABLE_POOL_PASSWD
+          value: "true"
+        - name: PGPOOL_SKIP_PASSWORD_ENCRYPTION
+          value: "false"
+        # The following settings are not required when not using the Pgpool-II PCP command.
+        # To enable the following settings, you must define a secret that stores the PCP user's
+        # username and password.
+        - name: PGPOOL_PCP_USER
+          valueFrom:
+            secretKeyRef:
+              name: handler-pgpool-pcp-secret
+              key: username
+        - name: PGPOOL_PCP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: handler-pgpool-pcp-secret
+              key: password
+        - name: PCPPASSFILE
+          value: "/var/lib/pgsql/.pcppass"
+        - name: KUBECONFIG
+          value: "/k8sconfig/my-cluster.yml"
+        - name: COMPUTE_ID
+          value: "COMPUTEID"
+        - name: TENANTID
+          value: "MYTENANTID"
+        - name: TIMELINEID
+          value: "MYTIMELINEID"
+        - name: CPUMON_CHECK_INTERVAL
+          value: "30"
+        - name: CPUMON_SCALE_TIMEWINDOW
+          value: "60"
+        - name: CPUMON_IDLE_TIMEWINDOW
+          value: "300"
+        - name: CPUMON_SCALEUP_THRESHOLD
+          value: "50"
+        - name: CPUMON_SCALEDOWN_THRESHOLD
+          value: "10"
+
+        volumeMounts:
+        - name: pgpool-config
+          mountPath: /config
+        - name: pgpool-scripts
+          mountPath: /pgpool-scripts
+        - name: pgpool-compute-manifest
+          mountPath: /pgpool-compute-manifest
+        - name: pgpool-k8s-specs
+          mountPath: /k8sconfig
+        #- name: pgpool-tls
+        #  mountPath: /config/tls
+      volumes:
+      - name: pgpool-config
+        configMap:
+          name: pgpool-config-COMPUTEID
+      - name: pgpool-scripts
+        configMap:
+          name: handler-pgpool-scripts
+          defaultMode: 0755
+      - name: pgpool-compute-manifest
+        configMap:
+          name: handler-pgpool-compute-manifest
+      - name: pgpool-k8s-specs
+        configMap: 
+          name: handler-pgpool-k8s-specs
+      # Configure your own TLS certificate.
+      # If not set, Pgpool-II will automatically generate the TLS certificate if ssl = on.
+      #- name: pgpool-tls
+      #  secret:
+      #    secretName: pgpool-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgpool-service-COMPUTEID
+  labels:
+    app: pgpool-service-COMPUTEID
+spec:
+  type: ClusterIP
+  selector:
+    app: pgpool-COMPUTEID
+  ports:
+  - name: pgpool-port
+    port: 9999
+    targetPort: 9999

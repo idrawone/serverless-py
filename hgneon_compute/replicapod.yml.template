@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: replica-pod-COMPUTEID-REPLICAID
+  labels:
+    app: replica-pod-COMPUTEID-REPLICAID
+spec:
+  containers:
+  - name: hgneon-replica-COMPUTEID-REPLICAID
+    image: hgneon/compute-node-v14:r2023-08-08-v1.0.0
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: "400m"
+    ports: 
+    - containerPort: 55433
+    command: ["/neoninit/replica.sh"]
+    env:
+    - name: PG_VERSION
+      value: "14"
+    - name: PGHOST
+      value: "localhost"
+    - name: PGDATABASE
+      value: "neondb"
+    - name: PGUSER
+      value: "cloud_admin"
+    - name: PGPASSWORD
+      value: "cloud_admin"
+    - name: PGPORT
+      value: "55433"
+    - name: TENANTID
+      value: "MYTENANTID"
+    - name: TIMELINEID
+      value: "MYTIMELINEID"
+    - name: NODEID
+      value: "COMPUTEID"
+    - name: REPID
+      value: "REPLICAID"
+
+    volumeMounts:
+      - name: replica-init
+        mountPath: "/neoninit"
+      - name: replica-spec
+        mountPath: "/neonspec"
+
+  volumes:
+  - name: replica-init
+    configMap:
+      name: neonconfig
+      defaultMode: 0755
+  - name: replica-spec
+    configMap:
+      name: computespec
+
+  restartPolicy: Always
+
+---
+##
+## internal service at 55433 for pgpool to connect to
+##
+apiVersion: v1
+kind: Service
+metadata:
+  name: replica-pgpool-service-COMPUTEID-REPLICAID
+  labels:
+    app: replica-pgpool-service-COMPUTEID-REPLICAID
+spec:
+  type: ClusterIP
+  selector:
+    app: replica-pod-COMPUTEID-REPLICAID
+  ports:
+    - name: replica-port
+      port: 55433
+      targetPort: 55433

@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgpool-config-COMPUTEID
+  labels:
+    name: pgpool-config-COMPUTEID
+data:
+  pgpool.conf: |-
+    listen_addresses = '*'
+    port = 9999
+    pcp_listen_addresses = '*'
+    pcp_port = 9899
+    pcp_socket_dir = '/var/run/pgpool'
+    backend_hostname0 = 'compute-pgpool-service-COMPUTEID'
+    backend_port0 = 55433
+    backend_weight0 = 0.1
+    backend_flag0 = 'ALWAYS_PRIMARY|DISALLOW_TO_FAILOVER'
+    backend_application_name0 = 'main'
+    sr_check_period = 0
+    sr_check_user = 'cloud_admin'
+    health_check_period = 0
+    health_check_user = 'cloud_admin'
+    backend_clustering_mode = 'streaming_replication'
+    num_init_children = 32
+    max_pool = 4
+    child_life_time = 300
+    child_max_connections = 0
+    connection_life_time = 0
+    client_idle_limit = 0
+    connection_cache = on
+    load_balance_mode = on
+    ssl = on
+    enable_pool_hba = off
+    failover_on_backend_error = off
+    log_min_messages = warning
+    # hg added
+    statement_level_load_balance = on
+    log_statement = off
+    log_per_node_statement = off
+    search_primary_node_timeout = 1
+    recovery_user = 'cloud_admin'
+    hostname0 = ''
+
+    backend_hostname1 = 'replica-pgpool-service-COMPUTEID-1'
+    backend_port1 = 55433
+    backend_weight1 = 0.3
+    backend_flag1 = 'ALLOW_TO_FAILOVER'
+    backend_hostname2 = 'replica-pgpool-service-COMPUTEID-2'
+    backend_port2 = 55433
+    backend_weight2 = 0.3
+    backend_flag2 = 'ALLOW_TO_FAILOVER'
+    backend_hostname3 = 'replica-pgpool-service-COMPUTEID-3'
+    backend_port3 = 55433
+    backend_weight3 = 0.3
+    backend_flag3 = 'ALLOW_TO_FAILOVER'
+    backend_hostname4 = 'replica-pgpool-service-COMPUTEID-4'
+    backend_port4 = 55433
+    backend_weight4 = 0.3
+    backend_flag4 = 'ALLOW_TO_FAILOVER'
+    backend_hostname5 = 'replica-pgpool-service-COMPUTEID-5'
+    backend_port5 = 55433
+    backend_weight5 = 0.3
+    backend_flag5 = 'ALLOW_TO_FAILOVER'
+    backend_hostname6 = 'replica-pgpool-service-COMPUTEID-6'
+    backend_port6 = 55433
+    backend_weight6 = 0.3
+    backend_flag6 = 'ALLOW_TO_FAILOVER'
+    backend_hostname7 = 'replica-pgpool-service-COMPUTEID-7'
+    backend_port7 = 55433
+    backend_weight7 = 0.3
+    backend_flag7 = 'ALLOW_TO_FAILOVER'
+    backend_hostname8 = 'replica-pgpool-service-COMPUTEID-8'
+    backend_port8 = 55433
+    backend_weight8 = 0.3
+    backend_flag8 = 'ALLOW_TO_FAILOVER'
+  # If pool_hba.conf isn't configured, Pgpool-II will automatically generate it.
+  # Note that to use pool_hba.conf you must set enable_pool_hba = on.
+  #pool_hba.conf: |-
+  #  local      all         all                          trust
+  #  hostssl    all         all         0.0.0.0/0        scram-sha-256

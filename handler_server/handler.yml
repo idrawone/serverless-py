@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: handler-server
+spec:
+  selector:
+    matchLabels:
+      app: handler
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: handler
+    spec:
+      containers:
+      - name: handler
+        image: hgneon/handler:v1.0.0
+        imagePullPolicy: Always
+        env:
+        - name: KUBECONFIG
+          value: "/k8sconfig/my-cluster.yml"
+        ports:
+        - containerPort: 8989
+        volumeMounts:
+        - name: handler-pgpool-scripts
+          mountPath: /pgpool-scripts
+        - name: handler-pgpool
+          mountPath: /pgpool
+        - name: handler-pgpool-compute-manifest
+          mountPath: /pgpool-compute-manifest
+        - name: handler-pgpool-k8s-specs
+          mountPath: /k8sconfig
+        - name: handler-pvc
+          mountPath: "/maps"
+      volumes:
+      - name: handler-pvc
+        persistentVolumeClaim:
+          claimName: handler-pvc
+      - name:  handler-pgpool-scripts
+        configMap:
+          name:  handler-pgpool-scripts
+          defaultMode: 0755
+      - name:  handler-pgpool
+        configMap:
+          name:  handler-pgpool
+          defaultMode: 0755
+      - name:  handler-pgpool-compute-manifest
+        configMap:
+          name:  handler-pgpool-compute-manifest
+      - name:  handler-pgpool-k8s-specs
+        configMap: 
+          name:  handler-pgpool-k8s-specs 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: handler-service
+spec:
+  type: ClusterIP
+  selector:
+    app: handler
+  ports:
+  - name: haproxy-map
+    port: 8989
+    targetPort: 8989
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: handler-pvc
+spec:
+  volumeName: handler-pv
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: handler-pv
+spec:
+  storageClassName: fast
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "maps"

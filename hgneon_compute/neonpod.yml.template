@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compute-pod-COMPUTEID
+  labels:
+    app: compute-pod-COMPUTEID
+    #ownerReferences:
+    #- apiVersion: apps/v1
+    #kind: Deployment
+    #name: compute-deployment
+    #controller: true
+    #uid: 592a3e4e-d0a6-47a7-8117-a2d597839e78
+spec:
+  containers:
+  - name: hgneon-compute-COMPUTEID
+    image: hgneon/compute-node-v14:r2023-08-08-v1.0.0
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: "400m"
+    ports: 
+    - containerPort: 55433
+    - containerPort: 3080
+    command: ["/neoninit/compute.sh"]
+    env:
+    - name: PG_VERSION
+      value: "14"
+    - name: PGHOST
+      value: "localhost"
+    - name: PGDATABASE
+      value: "neondb"
+    - name: PGUSER
+      value: "cloud_admin"
+    - name: PGPASSWORD
+      value: "cloud_admin"
+    - name: PGPORT
+      value: "55433"
+    - name: TENANTID
+      value: "MYTENANTID"
+    - name: TIMELINEID
+      value: "MYTIMELINEID"
+    volumeMounts:
+      - name: compute-init
+        mountPath: "/neoninit"
+      - name: compute-spec
+        mountPath: "/neonspec"
+
+  volumes:
+  - name: compute-init
+    configMap:
+      name: neonconfig
+      defaultMode: 0755
+  - name: compute-spec
+    configMap:
+      name: computespec
+
+  restartPolicy: Always
+
+---
+##
+## internal service at 55433 for pgpool to connect to
+##
+apiVersion: v1
+kind: Service
+metadata:
+  name: compute-pgpool-service-COMPUTEID
+  labels:
+    app: compute-pgpool-service-COMPUTEID
+spec:
+  type: ClusterIP
+  selector:
+    app: compute-pod-COMPUTEID
+  ports:
+    - name: compute-port
+      port: 55433
+      targetPort: 55433
