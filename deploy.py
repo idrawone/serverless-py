@@ -77,6 +77,66 @@ def apply_template(file_path):
                         print(f'{api_version}/{kind} {name} created successfully')
                     else:
                         raise e
+            elif kind == 'ServiceAccount':
+                api_instance = client.CoreV1Api()
+                try:
+                    existing_resource = api_instance.read_namespaced_service_account(name, namespace)
+                    api_instance.replace_namespaced_service_account(name, namespace, resource)
+                    print(f'{api_version}/{kind} {name} updated successfully')
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        api_instance.create_namespaced_service_account(namespace, resource)
+                        print(f'{api_version}/{kind} {name} created successfully')
+                    else:
+                        raise e
+            elif kind == 'ClusterRole':
+                api_instance = client.RbacAuthorizationV1Api()
+                try:
+                    existing_resource = api_instance.read_cluster_role(name)
+                    api_instance.replace_cluster_role(name, resource)
+                    print(f'{api_version}/{kind} {name} updated successfully')
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        api_instance.create_cluster_role(resource)
+                        print(f'{api_version}/{kind} {name} created successfully')
+                    else:
+                        raise e
+            elif kind == 'RoleBinding':
+                api_instance = client.RbacAuthorizationV1Api()
+                try:
+                    existing_resource = api_instance.read_namespaced_role_binding(name, namespace)
+                    api_instance.replace_namespaced_role_binding(name, namespace, resource)
+                    print(f'{api_version}/{kind} {name} updated successfully')
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        api_instance.create_namespaced_role_binding(namespace, resource)
+                        print(f'{api_version}/{kind} {name} created successfully')
+                    else:
+                        raise e
+            elif kind == 'ClusterRoleBinding':
+                api_instance = client.RbacAuthorizationV1Api()
+                try:
+                    existing_resource = api_instance.read_cluster_role_binding(name)
+                    api_instance.replace_cluster_role_binding(name, resource)
+                    print(f'{api_version}/{kind} {name} updated successfully')
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        api_instance.create_cluster_role_binding(resource)
+                        print(f'{api_version}/{kind} {name} created successfully')
+                    else:
+                        raise e
+            elif kind == 'APIService':
+                api_instance = client.ApiregistrationV1Api()
+                try:
+                    existing_resource = api_instance.read_api_service(name)
+                    api_instance.replace_api_service(name, resource)
+                    print(f'{api_version}/{kind} {name} updated successfully')
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        api_instance.create_api_service(resource)
+                        print(f'{api_version}/{kind} {name} created successfully')
+                    else:
+                        raise e
             else:
                 print(f'Unknown resource type: {kind}')
 
